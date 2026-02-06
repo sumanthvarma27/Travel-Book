@@ -1,30 +1,12 @@
 "use client";
 import TripWizard from '@/components/TripWizard';
 import { motion } from 'framer-motion';
+import VideoBackground from '@/components/VideoBackground';
 
 export default function WizardPage() {
     return (
-        <main className="min-h-screen relative overflow-hidden bg-black text-white font-sans">
-            {/* Video Background */}
-            <div className="absolute inset-0 z-0">
-                <video
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    className="w-full h-full object-cover opacity-60 brightness-110 contrast-110"
-                >
-                    {/* Local video file - upload your video as background.mp4 in public/videos/ */}
-                    <source src="/videos/background.mp4" type="video/mp4" />
-                    <source src="/videos/background.webm" type="video/webm" />
-                    {/* Fallback to online video if local file not found */}
-                    <source src="https://cdn.pixabay.com/video/2021/08/04/83896-582967156_large.mp4" type="video/mp4" />
-                </video>
-                {/* Warm/Dark gradient overlay for better wizard visibility */}
-                <div className="absolute inset-0 bg-gradient-to-br from-black/50 via-stone-900/40 to-black/50"></div>
-                {/* Vignette effect - Warmer tint */}
-                <div className="absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.9)]"></div>
-            </div>
+        <main className="min-h-screen relative overflow-hidden text-white font-sans">
+            <VideoBackground />
 
             <div className="relative z-10 min-h-screen flex flex-col p-6 md:p-8 max-w-[1600px] mx-auto">
                 {/* Navbar (Simplified for Wizard flow) */}

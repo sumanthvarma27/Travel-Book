@@ -1,5 +1,5 @@
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_google_vertexai import ChatVertexAI
 from langchain_core.output_parsers import JsonOutputParser
 from app.graph.state import TripState
 from app.schemas.itinerary import TripPlan
@@ -16,10 +16,11 @@ async def planner_node(state: TripState):
     logistics = state.get('logistics_info', '')
     activities = state.get('activities_recommendations', '')
 
-    api_key = os.getenv("GEMINI_API_KEY")
+    project = os.getenv("GOOGLE_CLOUD_PROJECT")
+    location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
     parser = JsonOutputParser(pydantic_object=TripPlan)
 
-    if not api_key:
+    if not project:
         # Mock Response for testing without LLM
         from datetime import datetime, timedelta
         from app.schemas.itinerary import (
@@ -82,7 +83,7 @@ async def planner_node(state: TripState):
             ))
 
         # Mock hotels
-        hotels = [
+        hotels_list = [
             AccommodationOption(
                 name=f"Mock Hotel {spec.destination}",
                 area="City Center",
@@ -94,7 +95,7 @@ async def planner_node(state: TripState):
         ]
 
         # Mock budget
-        budget = BudgetBreakdown(
+        budget_obj = BudgetBreakdown(
             flights=600,
             accommodation=100 * num_days,
             activities=50 * num_days,
@@ -115,15 +116,22 @@ async def planner_node(state: TripState):
             title=f"{num_days}-Day {spec.destination} Trip",
             summary=f"A {num_days}-day {spec.travel_style} adventure in {spec.destination} for {spec.travelers} traveler(s) with {spec.budget_tier} budget.",
             itinerary=itinerary,
-            hotels_shortlist=hotels,
+            hotels_shortlist=hotels_list,
             intercity_travel=[],
-            budget=budget,
+            budget=budget_obj,
             packing_list=packing_list
         )
 
         return {"plan": mock_plan, "status": "completed", "plan_quality_score": 7}
 
-    llm = ChatGoogleGenerativeAI(model="gemini-pro", google_api_key=api_key, temperature=0.2)
+    # Use Gemini 2.0 Flash for better planning
+    llm = ChatVertexAI(
+        model="gemini-2.5-flash",
+        project=project,
+        location=location,
+        temperature=0.2,
+        max_tokens=8000
+    )
 
     prompt = ChatPromptTemplate.from_template(PLANNER_SYSTEM_PROMPT + "\n\n{format_instructions}")
 

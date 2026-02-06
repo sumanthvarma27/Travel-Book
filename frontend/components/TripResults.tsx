@@ -40,7 +40,7 @@ export default function TripResults({ plan }: { plan: TripPlan }) {
     ];
 
     return (
-        <div className="min-h-screen bg-[#0b1121] text-white p-4 md:p-8" ref={contentRef}>
+        <div className="min-h-screen text-white p-4 md:p-8" ref={contentRef}>
             {/* Header / Title */}
             <motion.div
                 initial={{ opacity: 0, y: -20 }}

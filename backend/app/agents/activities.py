@@ -1,7 +1,8 @@
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_google_vertexai import ChatVertexAI
 from app.graph.state import TripState
 from app.core.prompts import ACTIVITIES_SYSTEM_PROMPT
+from app.tools.web_search import web_search_tool
 import os
 
 async def activities_node(state: TripState):
@@ -26,8 +27,9 @@ async def activities_node(state: TripState):
         num_days = 3  # Default fallback
 
     # Check for API key to decide execution mode
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
+    project = os.getenv("GOOGLE_CLOUD_PROJECT")
+    location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+    if not project:
         # Provide mock activities with booking links
         activities_context = f"\n\n=== ACTIVITIES & EXPERIENCES ===\n"
         activities_context += f"Based on your interests: {', '.join(spec.interests) if spec.interests else 'general sightseeing'}\n\n"
@@ -71,9 +73,41 @@ async def activities_node(state: TripState):
 
         return {"activities_recommendations": activities_context}
 
-    llm = ChatGoogleGenerativeAI(model="gemini-pro", google_api_key=api_key, temperature=0.4)
+    # Perform web searches for activities and experiences
+    interests_str = ' '.join(spec.interests) if spec.interests else 'sightseeing'
+    search_queries = [
+        f"best tours and activities in {spec.destination} 2026",
+        f"{spec.destination} {interests_str} experiences",
+        f"things to do {spec.destination} {spec.budget_tier} budget",
+        f"top rated restaurants {spec.destination}",
+        f"{spec.destination} food tours and dining experiences"
+    ]
 
-    prompt = ChatPromptTemplate.from_template(ACTIVITIES_SYSTEM_PROMPT)
+    search_results = []
+    for query in search_queries:
+        try:
+            results = web_search_tool.invoke({"query": query, "max_results": 4})
+            search_results.extend(results)
+        except Exception as e:
+            print(f"Search error for '{query}': {e}")
+
+    # Format search results for LLM
+    search_context = "\n\n".join([
+        f"**{r['title']}**\n{r['snippet']}\nSource: {r['url']}"
+        for r in search_results[:15]
+    ])
+
+    llm = ChatVertexAI(
+        model="gemini-2.5-flash",
+        project=project,
+        location=location,
+        temperature=0.4,
+        max_tokens=8000
+    )
+
+    prompt = ChatPromptTemplate.from_template(
+        ACTIVITIES_SYSTEM_PROMPT + "\n\nWeb Search Results:\n{search_context}"
+    )
     chain = prompt | llm
 
     response = await chain.ainvoke({
@@ -86,7 +120,8 @@ async def activities_node(state: TripState):
         "interests": ", ".join(spec.interests) if spec.interests else "general sightseeing",
         "research_notes": research_notes,
         "weather_info": weather_info,
-        "hotel_recommendations": hotel_recommendations
+        "hotel_recommendations": hotel_recommendations,
+        "search_context": search_context
     })
 
     return {"activities_recommendations": response.content}
