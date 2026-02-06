@@ -95,12 +95,6 @@ export default function TripWizard() {
             animate="show"
             className="w-full max-w-[420px] flex flex-col gap-2"
         >
-            {/* Header - Floating */}
-            {/* Note: The parent page already has a header, so we can keep this minimal or remove it. 
-                User said "Let's Plan Your Escape" in parent. We'll keep a minimal header here or assume parent handles it.
-                I will remove the internal title to ensure it floats well with the parent's title.
-            */}
-
             {loading ? (
                 <motion.div
                     initial={{ opacity: 0 }}
@@ -171,21 +165,20 @@ export default function TripWizard() {
                         <label className={labelClass}>Travelers</label>
                         <div className="grid grid-cols-4 gap-2">
                             {[
-                                { value: 'solo', label: 'Solo', icon: '👤' },
-                                { value: 'couple', label: 'Couple', icon: '💑' },
-                                { value: 'family', label: 'Family', icon: '👨‍👩‍👧' },
-                                { value: 'friends', label: 'Friends', icon: '👥' }
+                                { value: 'solo', label: 'Solo' },
+                                { value: 'couple', label: 'Couple' },
+                                { value: 'family', label: 'Family' },
+                                { value: 'friends', label: 'Friends' }
                             ].map((type) => (
                                 <button
                                     key={type.value}
                                     type="button"
                                     onClick={() => setGroupType(type.value as any)}
-                                    className={`py-3 px-1 flex flex-col items-center justify-center rounded-xl transition-all border ${groupType === type.value
+                                    className={`py-2 px-1 flex flex-col items-center justify-center rounded-lg transition-all border ${groupType === type.value
                                         ? 'bg-teal-500 border-teal-500 text-black shadow-lg shadow-teal-500/20'
                                         : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10 hover:text-white'
                                         }`}
                                 >
-                                    <span className="text-xl mb-1">{type.icon}</span>
                                     <span className="text-[10px] font-bold uppercase">{type.label}</span>
                                 </button>
                             ))}
