@@ -1,0 +1,23 @@
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+exclude = [
+  ".git",
+  ".venv",
+  "node_modules",
+  "dist",
+  "build",
+]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+exclude = "(^|/)(node_modules|dist|build)/"
