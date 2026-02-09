@@ -235,3 +235,28 @@ Using general recommendations:
         # If not found, return NYC as default (could be improved with actual geocoding API)
         print(f"Warning: City '{city}' not found in database, using default coordinates")
         return (40.7128, -74.0060)  # Default to NYC
+
+
+# Module-level helper for compatibility with older imports
+_weather_tool = WeatherTool()
+
+def weather_forecast(*args) -> str:
+    """
+    Flexible weather_forecast wrapper.
+    Acceptable signatures:
+      - weather_forecast(city: str, start_date: str, end_date: str)
+      - weather_forecast(latitude: float, longitude: float, start_date: str, end_date: str)
+    """
+    if len(args) == 3 and isinstance(args[0], str):
+        city, start_date, end_date = args
+        lat, lon = WeatherTool.get_city_coordinates(city)
+        return _weather_tool.get_forecast(lat, lon, start_date, end_date)
+    elif len(args) == 4:
+        latitude, longitude, start_date, end_date = args
+        return _weather_tool.get_forecast(latitude, longitude, start_date, end_date)
+    else:
+        raise TypeError("weather_forecast expects (city, start_date, end_date) or (lat, lon, start_date, end_date)")
+
+
+def get_city_coordinates(city: str) -> tuple[float, float]:
+    return WeatherTool.get_city_coordinates(city)

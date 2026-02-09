@@ -1,11 +1,13 @@
 """
-Activity booking tool for finding tour and activity booking options.
-Based on reference implementation patterns.
+Activity booking tool for finding tours and experiences with booking links.
 """
 
 from langchain_core.tools import tool
 from typing import Dict, Any, List
-from .web_search import web_search_tool
+from app.tools.search_utils import web_search
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @tool
@@ -15,76 +17,80 @@ def find_activity_bookings(
     max_results: int = 3
 ) -> Dict[str, Any]:
     """
-    Find booking options for activities in a destination.
-
+    Find bookable activities and tours with direct booking links.
+    
     Args:
-        destination: City or region where activities are located
-        activities: List of activity names to search for
-        max_results: Maximum search results per activity (default: 3)
-
+        destination: City or location name
+        activities: List of activity names/types to search for
+        max_results: Maximum results per activity
+    
     Returns:
-        Dictionary containing activity booking options and platform links
+        Dict with 'activities' list and 'platform_links' dict
     """
     try:
-        platforms = ["Viator", "GetYourGuide", "TripAdvisor", "Klook", "Expedia"]
-        activity_bookings = []
-
-        # Limit to 5 activities to avoid rate limits
-        for activity in activities[:5]:
-            query = f"{activity} {destination} tickets booking tours"
-
-            # Web search for each activity
-            results = web_search_tool.invoke({
-                "query": query,
-                "max_results": max_results
-            })
-
+        dest_encoded = destination.replace(' ', '+')
+        
+        activity_results = []
+        
+        for activity in activities[:5]:  # Limit to 5 activities
+            activity_encoded = activity.replace(' ', '+')
+            search_query = f"{activity} {destination} tour booking"
+            
+            results = web_search(search_query, max_results=max_results)
+            
             booking_options = []
-            for result in (results or []):
-                url = (result.get("url", "") or "")
-                url_lower = url.lower()
-
-                # Detect which booking platform the URL belongs to
-                platform_found = next(
-                    (p for p in platforms if p.lower() in url_lower),
-                    "Other"
-                )
-
+            for result in results:
+                # Determine platform from URL
+                url = result.get("url", "")
+                platform = "Other"
+                if "viator.com" in url:
+                    platform = "Viator"
+                elif "getyourguide.com" in url:
+                    platform = "GetYourGuide"
+                elif "tripadvisor.com" in url:
+                    platform = "TripAdvisor"
+                elif "klook.com" in url:
+                    platform = "Klook"
+                
                 booking_options.append({
-                    "platform": platform_found,
-                    "url": url,
                     "title": result.get("title", ""),
-                    "snippet": (result.get("snippet", "") or "")[:250]
+                    "platform": platform,
+                    "url": url,
+                    "snippet": result.get("snippet", "")
                 })
-
-            activity_bookings.append({
+            
+            activity_results.append({
                 "activity": activity,
                 "booking_options": booking_options
             })
-
-        # Add direct platform landing pages
-        destination_plus = destination.replace(" ", "+")
-        destination_dash = destination.lower().replace(" ", "-")
-
+        
+        # Generate platform landing pages
         platform_links = {
-            "Viator": f"https://www.viator.com/{destination_dash}/d",
-            "GetYourGuide": f"https://www.getyourguide.com/s/?q={destination_plus}",
-            "TripAdvisor": f"https://www.tripadvisor.com/Search?q={destination_plus}",
-            "Klook": f"https://www.klook.com/en-US/search/?query={destination_plus}",
-            "Expedia Things To Do": f"https://www.expedia.com/things-to-do/search?location={destination_plus}"
+            "Viator": f"https://www.viator.com/searchResults/all?text={dest_encoded}",
+            "GetYourGuide": f"https://www.getyourguide.com/s/?q={dest_encoded}",
+            "TripAdvisor": f"https://www.tripadvisor.com/Attractions-{dest_encoded}",
+            "Klook": f"https://www.klook.com/en-US/search/?query={dest_encoded}",
+            "OpenTable": f"https://www.opentable.com/s?covers=2&term={dest_encoded}",
         }
-
+        
+        logger.info(f"✅ Found activities for {len(activities)} requests in {destination}")
+        
         return {
-            "destination": destination,
-            "activities": activity_bookings,
+            "activities": activity_results,
             "platform_links": platform_links,
-            "total_activities": len(activity_bookings)
+            "destination": destination
         }
-
+    
     except Exception as e:
+        logger.error(f"❌ Activity search failed: {str(e)}")
+        
+        dest_encoded = destination.replace(' ', '+')
         return {
-            "error": str(e),
-            "destination": destination,
             "activities": [],
-            "platform_links": {}
+            "platform_links": {
+                "Viator": f"https://www.viator.com/searchResults/all?text={dest_encoded}",
+                "GetYourGuide": f"https://www.getyourguide.com/s/?q={dest_encoded}",
+            },
+            "destination": destination,
+            "error": str(e)
         }

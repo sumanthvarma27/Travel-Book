@@ -1,50 +1,84 @@
-import random
+"""
+Mock data providers for testing without external APIs.
+"""
+
 from typing import List
-from app.schemas.itinerary import AccommodationOption, TransportOption
+from datetime import datetime, timedelta
+
+
+class MockHotel:
+    def __init__(self, name: str, area: str, price: float, rating: float, description: str):
+        self.name = name
+        self.area = area
+        self.price_per_night = price
+        self.rating = rating
+        self.description = description
+        self.booking_link = f"https://www.google.com/search?q={name.replace(' ', '+')}"
+
+
+class MockFlight:
+    def __init__(self, provider: str, departure: str, arrival: str, price: float):
+        self.provider = provider
+        self.departure = departure
+        self.arrival = arrival
+        self.estimated_price = price
+        self.booking_link = f"https://www.google.com/flights?q={departure}+to+{arrival}"
+
 
 class BookingMocks:
-    """
-    Mock adapter to simulate flight/hotel data when real APIs are not configured.
-    """
+    """Mock booking data for when APIs are unavailable"""
     
     @staticmethod
-    def search_hotels(destination: str, budget_tier: str) -> List[AccommodationOption]:
-        # Identify base price based on budget
-        base_price = 100
-        if budget_tier == "low": base_price = 50
-        elif budget_tier == "high": base_price = 250
-        elif budget_tier == "luxury": base_price = 600
-        
-        adjectives = ["Cozy", "Grand", "City", "Boutique", "Modern", "Historic"]
-        suffixes = ["Hotel", "Inn", "Suites", "Resort", "Stay"]
-        
-        options = []
-        for i in range(3):
-            name = f"{random.choice(adjectives)} {destination} {random.choice(suffixes)}"
-            price = base_price * random.uniform(0.8, 1.2)
-            options.append(AccommodationOption(
-                name=name,
-                area="City Center",
-                price_per_night=round(price, 2),
-                rating=round(random.uniform(3.5, 5.0), 1),
-                booking_link=f"https://www.google.com/search?q={name.replace(' ', '+')}",
-                description=f"A {budget_tier} option centrally located near major attractions."
-            ))
-        return options
-
-    @staticmethod
-    def search_flights(origin: str, destination: str, date: str) -> List[TransportOption]:
-        # Simulate flight search
-        airlines = ["SkyAir", "GlobalJet", "EcoFly"]
-        price = 300 + random.randint(-50, 150)
+    def search_hotels(destination: str, budget_tier: str) -> List[MockHotel]:
+        """Generate mock hotel recommendations"""
+        base_prices = {
+            "low": 60,
+            "medium": 120,
+            "high": 250,
+            "luxury": 500
+        }
+        base_price = base_prices.get(budget_tier, 120)
         
         return [
-            TransportOption(
-                type="flight",
-                provider=random.choice(airlines),
-                departure=f"{origin} ({date} 09:00)",
-                arrival=f"{destination} ({date} 14:00)",
-                estimated_price=price,
-                booking_link="https://www.google.com/travel/flights"
-            )
+            MockHotel(
+                name=f"Central {destination} Hotel",
+                area="City Center",
+                price=base_price,
+                rating=4.2,
+                description=f"Well-located hotel in the heart of {destination}"
+            ),
+            MockHotel(
+                name=f"{destination} Boutique Stay",
+                area="Downtown",
+                price=base_price * 0.8,
+                rating=4.5,
+                description=f"Charming boutique accommodation"
+            ),
+            MockHotel(
+                name=f"Budget Inn {destination}",
+                area="Near Transit",
+                price=base_price * 0.6,
+                rating=3.8,
+                description=f"Affordable option with good transport links"
+            ),
+        ]
+    
+    @staticmethod
+    def search_flights(origin: str, destination: str, date: str) -> List[MockFlight]:
+        """Generate mock flight options"""
+        base_price = 300
+        
+        return [
+            MockFlight(
+                provider="Major Airline",
+                departure=f"{origin} 08:00 AM",
+                arrival=f"{destination} 02:30 PM",
+                price=base_price
+            ),
+            MockFlight(
+                provider="Budget Carrier",
+                departure=f"{origin} 02:00 PM",
+                arrival=f"{destination} 08:45 PM",
+                price=base_price * 0.7
+            ),
         ]

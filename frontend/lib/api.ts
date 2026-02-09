@@ -9,15 +9,25 @@ export async function createPlan(spec: TripSpec): Promise<TripPlan> {
         body: JSON.stringify(spec),
     });
 
+    const data = await res.json();
+
     if (!res.ok) {
-        throw new Error('Failed to generate plan');
+        const errorMsg = typeof data.detail === 'string'
+            ? data.detail
+            : (data.detail?.error || data.error || 'Failed to generate plan');
+        throw new Error(errorMsg);
     }
 
-    const data = await res.json();
     if (data.status === 'failed') {
         throw new Error(data.error || 'Plan generation failed');
     }
-    return data.plan;
+
+    // Ensure origin and destination are set on the plan
+    const plan = data.plan as TripPlan;
+    if (!plan.origin) plan.origin = spec.origin;
+    if (!plan.destination) plan.destination = spec.destination;
+
+    return plan;
 }
 
 export async function getTrips() {

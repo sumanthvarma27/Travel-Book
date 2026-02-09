@@ -1,20 +1,51 @@
-fastapi
-uvicorn
-pydantic>=2.0
-pydantic-settings
-langgraph
-langchain-core
-langchain-google-vertexai
-langchain-google-genai
-google-cloud-aiplatform
-python-dotenv
-sqlmodel
-httpx
-openmeteo-requests
-requests-cache
-retry
-retry-requests
-duckduckgo-search>=6.3.0
-ddgs
+# Core Web Framework
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+python-multipart==0.0.9
+
+# Pydantic for data validation
+# pin to a 2.9.x release to satisfy `langchain-google-vertexai` (<2.10)
+pydantic==2.9.2
+pydantic-settings==2.6.1
+
+# LangChain & AI
+langchain-core==0.3.28
+langchain-google-genai==2.0.6
+langchain-google-vertexai==2.0.9
+langgraph==0.2.59
+
+# Google AI Platform
+google-cloud-aiplatform==1.74.0
+google-generativeai==0.8.3
+
+# Database
+sqlmodel==0.0.22
+sqlalchemy==2.0.36
+
+# HTTP Clients
+# pin to 0.27.x to satisfy langchain-google-vertexai dependency (<0.28.0)
+# use 0.27.2 which has wheels available for your Python version
+httpx==0.27.2
+requests==2.32.3
+
+# Environment & Config
+python-dotenv==1.0.1
+
+# Weather API
+openmeteo-requests==1.3.0
+requests-cache==1.2.1
+retry-requests==2.0.0
+
+# Web Search
+duckduckgo-search==7.2.1
+
+# Parsing & Data
 beautifulsoup4==4.12.3
-requests==2.31.0
+lxml==5.3.0
+
+# Logging
+loguru==0.7.3
+
+# Testing (optional but recommended)
+pytest==8.3.4
+pytest-asyncio==0.24.0

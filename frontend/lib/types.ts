@@ -41,12 +41,25 @@ export interface AccommodationOption {
     booking_link?: string;
 }
 
+export interface IntercityTravel {
+    from: string;
+    to: string;
+    mode: string;
+    estimated_cost: number;
+    booking_link?: string;
+    duration?: string;
+    notes?: string;
+}
+
 export interface TripPlan {
     trip_id?: string;
     title: string;
     summary: string;
+    origin?: string;
+    destination?: string;
     itinerary: DailyPlan[];
     hotels_shortlist: AccommodationOption[];
+    intercity_travel?: IntercityTravel[];
     budget: {
         flights: number;
         accommodation: number;

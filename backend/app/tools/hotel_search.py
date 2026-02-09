@@ -1,11 +1,14 @@
 """
-Hotel search tool for finding accommodations with booking platform links.
-Based on reference implementation patterns.
+Hotel search tool for finding accommodations with booking links.
+Uses web search to find hotels from major booking platforms.
 """
 
 from langchain_core.tools import tool
 from typing import Dict, Any, List
-from .web_search import web_search_tool
+from app.tools.search_utils import web_search
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @tool
@@ -14,75 +17,67 @@ def search_hotels(
     checkin_date: str,
     checkout_date: str,
     num_guests: int = 2,
-    budget_range: str = "Mid-Range"
+    budget_range: str = "medium"
 ) -> Dict[str, Any]:
     """
-    Search for hotels using web search results and provide booking platform links.
-
+    Search for hotels using web search across major booking platforms.
+    
     Args:
-        destination: City or region to search for hotels
-        checkin_date: Check-in date in YYYY-MM-DD format
-        checkout_date: Check-out date in YYYY-MM-DD format
+        destination: City or location name
+        checkin_date: Check-in date (YYYY-MM-DD)
+        checkout_date: Check-out date (YYYY-MM-DD)
         num_guests: Number of guests
-        budget_range: One of "Budget-Friendly", "Mid-Range", "Luxury"
-
+        budget_range: Budget level (low/medium/high)
+    
     Returns:
-        Dictionary containing hotel recommendations and booking platform links
+        Dict with 'hotels' list and 'booking_platforms' dict
     """
     try:
-        # Build dynamic search query based on budget
-        budget_terms = {
-            "Budget-Friendly": "budget affordable cheap economical",
-            "Mid-Range": "mid-range comfortable good value",
-            "Luxury": "luxury boutique 5-star premium upscale"
-        }
-        budget_keywords = budget_terms.get(budget_range, "mid-range")
-
-        # Perform web search
-        query = f"{destination} {budget_keywords} hotels best rated {num_guests} guests 2026"
-
-        search_results = web_search_tool.invoke({
-            "query": query,
-            "max_results": 6
-        })
-
-        # Extract and structure hotel results
+        # Prepare search queries for different booking platforms
+        dest_encoded = destination.replace(' ', '+')
+        
+        # Search for hotel information
+        search_query = f"best hotels {destination} {budget_range} budget {checkin_date}"
+        search_results = web_search(search_query, max_results=8)
+        
+        # Extract hotel information from search results
         hotels = []
-        for result in (search_results or [])[:6]:
+        for result in search_results[:5]:
             hotels.append({
-                "name": result.get("title", ""),
-                "description": (result.get("snippet", "") or "")[:250],
-                "booking_url": result.get("url", ""),
-                "source": "Web Search"
+                "name": result.get("title", "").replace(" - Booking.com", "").replace(" - Hotels.com", ""),
+                "description": result.get("snippet", ""),
+                "booking_url": result.get("url", "")
             })
-
-        # Construct direct booking platform links
-        destination_plus = destination.replace(" ", "+")
-        destination_dash = destination.lower().replace(" ", "-")
-
+        
+        # Generate direct booking platform URLs
         booking_platforms = {
-            "Booking.com": f"https://www.booking.com/searchresults.html?ss={destination_plus}&checkin={checkin_date}&checkout={checkout_date}&group_adults={num_guests}",
-            "Hotels.com": f"https://www.hotels.com/search.do?destination={destination_plus}&startDate={checkin_date}&endDate={checkout_date}&adults={num_guests}",
-            "Airbnb": f"https://www.airbnb.com/s/{destination_dash}/homes?checkin={checkin_date}&checkout={checkout_date}&adults={num_guests}",
-            "Expedia": f"https://www.expedia.com/Hotel-Search?destination={destination_plus}&startDate={checkin_date}&endDate={checkout_date}&rooms=1&adults={num_guests}",
-            "Agoda": f"https://www.agoda.com/search?city={destination_plus}&checkIn={checkin_date}&checkOut={checkout_date}&rooms=1&adults={num_guests}"
+            "Booking.com": f"https://www.booking.com/searchresults.html?ss={dest_encoded}&checkin={checkin_date}&checkout={checkout_date}&group_adults={num_guests}",
+            "Hotels.com": f"https://www.hotels.com/search.do?q-destination={dest_encoded}&q-check-in={checkin_date}&q-check-out={checkout_date}&q-rooms=1",
+            "Airbnb": f"https://www.airbnb.com/s/{dest_encoded}/homes?checkin={checkin_date}&checkout={checkout_date}&adults={num_guests}",
+            "Expedia": f"https://www.expedia.com/Hotel-Search?destination={dest_encoded}&startDate={checkin_date}&endDate={checkout_date}&rooms=1&adults={num_guests}",
         }
-
+        
+        logger.info(f"✅ Found {len(hotels)} hotel options for {destination}")
+        
         return {
-            "destination": destination,
-            "checkin_date": checkin_date,
-            "checkout_date": checkout_date,
-            "num_guests": num_guests,
-            "budget_range": budget_range,
             "hotels": hotels,
             "booking_platforms": booking_platforms,
-            "search_query": query
-        }
-
-    except Exception as e:
-        return {
-            "error": str(e),
             "destination": destination,
+            "dates": f"{checkin_date} to {checkout_date}"
+        }
+    
+    except Exception as e:
+        logger.error(f"❌ Hotel search failed: {str(e)}")
+        
+        # Fallback with platform links only
+        dest_encoded = destination.replace(' ', '+')
+        return {
             "hotels": [],
-            "booking_platforms": {}
+            "booking_platforms": {
+                "Booking.com": f"https://www.booking.com/searchresults.html?ss={dest_encoded}",
+                "Hotels.com": f"https://www.hotels.com/search.do?q-destination={dest_encoded}",
+                "Airbnb": f"https://www.airbnb.com/s/{dest_encoded}/homes",
+            },
+            "destination": destination,
+            "error": str(e)
         }

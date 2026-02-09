@@ -93,7 +93,7 @@ export default function TripWizard() {
             variants={containerVariants}
             initial="hidden"
             animate="show"
-            className="w-full max-w-[420px] flex flex-col gap-2"
+            className="w-full max-w-105 flex flex-col gap-2"
         >
             {loading ? (
                 <motion.div
