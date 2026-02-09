@@ -5,8 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
+type TabType = 'places' | 'flights' | 'hotels' | 'itinerary' | 'packing';
+
 export default function TripResults({ plan }: { plan: TripPlan }) {
-    const [activeTab, setActiveTab] = useState<'itinerary' | 'budget' | 'packing'>('itinerary');
+    const [activeTab, setActiveTab] = useState<TabType>('places');
     const contentRef = useRef<HTMLDivElement>(null);
 
     const handlePrint = async () => {
@@ -30,13 +32,14 @@ export default function TripResults({ plan }: { plan: TripPlan }) {
         downloadAnchorNode.remove();
     };
 
+    // Get origin and destination from plan
+    const origin = plan.itinerary?.[0]?.city || 'Your City';
+    const destination = plan.itinerary?.[plan.itinerary.length - 1]?.city || 'Destination';
+
     const icons = [
-        { id: 'places', label: 'Places to Visit', icon: '/assets/icons/attractions.png', tab: 'itinerary', color: 'from-purple-500 to-indigo-500' },
-        { id: 'flights', label: 'Flight Tickets', icon: '/assets/icons/flight.png', tab: 'budget', color: 'from-blue-500 to-cyan-500' },
-        { id: 'hotels', label: 'Accommodation', icon: '/assets/icons/hotel.png', tab: 'budget', color: 'from-orange-500 to-amber-500' },
-        { id: 'commute', label: 'Commute Services', icon: '/assets/icons/transport.png', tab: 'budget', color: 'from-emerald-500 to-teal-500' },
-        { id: 'weather', label: 'Weather', icon: '/assets/icons/weather.png', tab: 'itinerary', color: 'from-yellow-400 to-orange-400' },
-        { id: 'packing', label: 'Packing List', icon: '/assets/icons/checklist.png', tab: 'packing', color: 'from-pink-500 to-rose-500' },
+        { id: 'places' as TabType, label: 'Places to Visit', icon: '/assets/icons/attractions.png', color: 'from-purple-500 to-indigo-500' },
+        { id: 'flights' as TabType, label: 'Flight Tickets', icon: '/assets/icons/flight.png', color: 'from-blue-500 to-cyan-500' },
+        { id: 'hotels' as TabType, label: 'Accommodation', icon: '/assets/icons/hotel.png', color: 'from-orange-500 to-amber-500' },
     ];
 
     return (
@@ -49,7 +52,7 @@ export default function TripResults({ plan }: { plan: TripPlan }) {
             >
                 <div>
                     <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-teal-200 via-white to-blue-200 bg-clip-text text-transparent">
-                        Your Journey to {plan.itinerary?.[0]?.city || 'Paradise'}
+                        {origin} → {destination}
                     </h1>
                     <p className="text-gray-400 mt-2 text-lg max-w-2xl">{plan.summary}</p>
                 </div>
@@ -63,9 +66,9 @@ export default function TripResults({ plan }: { plan: TripPlan }) {
                 </div>
             </motion.div>
 
-            {/* 3D Icon Menu */}
+            {/* 3D Icon Menu - Only 3 icons */}
             <div className="max-w-7xl mx-auto mb-12">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+                <div className="grid grid-cols-3 gap-6 max-w-4xl mx-auto">
                     {icons.map((item, index) => (
                         <motion.div
                             key={item.id}
@@ -73,19 +76,19 @@ export default function TripResults({ plan }: { plan: TripPlan }) {
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: index * 0.1 }}
                             whileHover={{ y: -10, scale: 1.05 }}
-                            onClick={() => setActiveTab(item.tab as any)}
+                            onClick={() => setActiveTab(item.id)}
                             className={`
-                                relative cursor-pointer group rounded-3xl p-4 flex flex-col items-center justify-center gap-4
+                                relative cursor-pointer group rounded-3xl p-6 flex flex-col items-center justify-center gap-4
                                 bg-gradient-to-br bg-white/5 border border-white/5 backdrop-blur-sm
                                 hover:bg-white/10 hover:border-white/20 transition-all duration-300
-                                ${activeTab === item.tab ? 'ring-2 ring-teal-500/50 bg-white/10' : ''}
+                                ${activeTab === item.id ? 'ring-2 ring-teal-500/50 bg-white/10' : ''}
                             `}
                         >
                             {/* Floating 3D Icon */}
                             <motion.div
                                 animate={{ y: [0, -8, 0] }}
                                 transition={{ repeat: Infinity, duration: 3 + index, ease: "easeInOut" }}
-                                className="relative w-24 h-24 md:w-28 md:h-28 filter drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]"
+                                className="relative w-28 h-28 md:w-32 md:h-32 filter drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]"
                             >
                                 <img
                                     src={item.icon}
@@ -96,7 +99,7 @@ export default function TripResults({ plan }: { plan: TripPlan }) {
 
                             {/* Label */}
                             <div className="text-center z-10 relative">
-                                <h3 className="text-sm font-bold text-gray-200 group-hover:text-white tracking-wide">{item.label}</h3>
+                                <h3 className="text-base font-bold text-gray-200 group-hover:text-white tracking-wide">{item.label}</h3>
                                 <div className="h-0.5 w-0 group-hover:w-full bg-teal-400 transition-all duration-300 mt-1 mx-auto"></div>
                             </div>
 
@@ -110,17 +113,18 @@ export default function TripResults({ plan }: { plan: TripPlan }) {
             {/* Tab Content Display */}
             <div className="max-w-7xl mx-auto bg-slate-900/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 min-h-[500px]">
                 <AnimatePresence mode="wait">
-                    {activeTab === 'itinerary' && (
+                    {/* PLACES TO VISIT TAB */}
+                    {activeTab === 'places' && (
                         <motion.div
-                            key="itinerary"
+                            key="places"
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
                             className="space-y-8"
                         >
                             <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold text-white">📅 Daily Itinerary</h2>
-                                <div className="text-sm text-gray-400">Detailed breakdown of your trip</div>
+                                <h2 className="text-2xl font-bold text-white">📍 Places to Visit</h2>
+                                <div className="text-sm text-gray-400">Detailed daily itinerary</div>
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -140,14 +144,7 @@ export default function TripResults({ plan }: { plan: TripPlan }) {
                                                     <div className="text-xs text-blue-300/70">{day.weather.condition}</div>
                                                 </div>
                                             </div>
-                                        ) : (
-                                            <div className="flex items-center gap-3 mb-6 bg-white/5 p-3 rounded-xl border border-white/5">
-                                                <span className="text-xl">📅</span>
-                                                <div>
-                                                    <div className="text-sm font-semibold text-gray-400">Forecast Pending</div>
-                                                </div>
-                                            </div>
-                                        )}
+                                        ) : null}
 
                                         <div className="space-y-6">
                                             {[...(day.morning_activities || []), ...(day.afternoon_activities || []), ...(day.evening_activities || [])].map((activity, i) => (
@@ -160,97 +157,196 @@ export default function TripResults({ plan }: { plan: TripPlan }) {
                                                         <span>📍 {activity.location}</span>
                                                         <span>💰 ${activity.estimated_cost}</span>
                                                     </div>
+                                                    {activity.booking_link && (
+                                                        <a
+                                                            href={activity.booking_link}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="mt-3 inline-block px-3 py-1 bg-teal-500/20 text-teal-300 text-xs rounded-lg hover:bg-teal-500/30 transition-colors"
+                                                        >
+                                                            Book Now ↗
+                                                        </a>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
                                 ))}
                             </div>
+
+                            {/* Activity Booking Platforms */}
+                            {plan.activity_platforms && Object.keys(plan.activity_platforms).length > 0 && (
+                                <div className="mt-12 bg-white/5 border border-white/5 rounded-2xl p-6">
+                                    <h3 className="text-xl font-bold text-white mb-4">🎫 Book Experiences & Tours</h3>
+                                    <div className="flex flex-wrap gap-4">
+                                        {Object.entries(plan.activity_platforms).map(([name, url]) => (
+                                            <a
+                                                key={name}
+                                                href={url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="px-5 py-3 bg-teal-500/10 border border-teal-500/20 hover:bg-teal-500/20 text-teal-300 rounded-xl transition-all flex items-center gap-2 font-medium"
+                                            >
+                                                {name} ↗
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </motion.div>
                     )}
 
-                    {activeTab === 'budget' && (
+                    {/* FLIGHT TICKETS TAB */}
+                    {activeTab === 'flights' && (
                         <motion.div
-                            key="budget"
+                            key="flights"
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
                         >
-                            <h2 className="text-2xl font-bold text-white mb-6">💰 Smart Budget & Bookings</h2>
+                            <h2 className="text-2xl font-bold text-white mb-6">✈️ Flight Tickets & Transportation</h2>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                                <div className="bg-gradient-to-br from-emerald-900/50 to-emerald-800/20 border border-emerald-500/20 p-6 rounded-2xl">
-                                    <div className="text-emerald-400 text-sm font-semibold uppercase tracking-wider mb-2">Total Estimated</div>
-                                    <div className="text-4xl font-bold text-white">${plan.budget?.total_estimated || 0}</div>
-                                    <div className="text-emerald-400/60 text-xs mt-1">Inclusive of all logistics</div>
+                            {/* Budget Summary for Flights */}
+                            <div className="bg-gradient-to-br from-blue-900/50 to-blue-800/20 border border-blue-500/20 p-6 rounded-2xl mb-8">
+                                <div className="text-blue-400 text-sm font-semibold uppercase tracking-wider mb-2">Estimated Flight Cost</div>
+                                <div className="text-4xl font-bold text-white">${plan.budget?.flights || 0}</div>
+                                <div className="text-blue-400/60 text-xs mt-1">Round trip for {plan.itinerary?.length || 1} days</div>
+                            </div>
+
+                            {/* Flight Options */}
+                            {plan.intercity_travel && plan.intercity_travel.length > 0 ? (
+                                <div className="space-y-6">
+                                    <h3 className="text-xl font-bold text-white mb-4">🎫 Available Flights</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {plan.intercity_travel.map((flight, i) => (
+                                            <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-blue-500/30 transition-colors">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <h4 className="font-bold text-lg text-white">{flight.from} → {flight.to}</h4>
+                                                        <p className="text-sm text-gray-400">{flight.mode || 'Flight'}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-2xl font-bold text-blue-400">${flight.estimated_cost}</div>
+                                                        <div className="text-xs text-gray-500">per person</div>
+                                                    </div>
+                                                </div>
+                                                {flight.booking_link && (
+                                                    <a
+                                                        href={flight.booking_link}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="mt-4 w-full block text-center px-4 py-2 bg-blue-500/20 text-blue-300 rounded-lg hover:bg-blue-500/30 transition-colors"
+                                                    >
+                                                        Book Flight ↗
+                                                    </a>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="col-span-2 bg-white/5 border border-white/10 p-6 rounded-2xl flex items-center gap-8 overflow-x-auto">
-                                    <div className="flex-1 min-w-[150px]">
-                                        <div className="text-gray-400 text-xs mb-1">Flights</div>
-                                        <div className="h-2 w-full bg-slate-700 rounded-full overflow-hidden">
-                                            <div className="h-full bg-blue-500 w-[60%]"></div>
-                                        </div>
-                                        <div className="text-white font-mono mt-1">${plan.budget?.flights || 0}</div>
-                                    </div>
-                                    <div className="flex-1 min-w-[150px]">
-                                        <div className="text-gray-400 text-xs mb-1">Stay</div>
-                                        <div className="h-2 w-full bg-slate-700 rounded-full overflow-hidden">
-                                            <div className="h-full bg-orange-500 w-[40%]"></div>
-                                        </div>
-                                        <div className="text-white font-mono mt-1">${plan.budget?.accommodation || 0}</div>
-                                    </div>
-                                    <div className="flex-1 min-w-[150px]">
-                                        <div className="text-gray-400 text-xs mb-1">Food & Fun</div>
-                                        <div className="h-2 w-full bg-slate-700 rounded-full overflow-hidden">
-                                            <div className="h-full bg-purple-500 w-[70%]"></div>
-                                        </div>
-                                        <div className="text-white font-mono mt-1">${(plan.budget?.food || 0) + (plan.budget?.activities || 0)}</div>
-                                    </div>
+                            ) : (
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+                                    <div className="text-6xl mb-4">✈️</div>
+                                    <h3 className="text-xl font-bold text-white mb-2">Search for Flights</h3>
+                                    <p className="text-gray-400 mb-6">Use these platforms to find the best flight deals</p>
                                 </div>
+                            )}
+
+                            {/* Flight Booking Platforms */}
+                            <div className="mt-8 bg-white/5 border border-white/5 rounded-2xl p-6">
+                                <h3 className="text-xl font-bold text-white mb-4">🔍 Find Best Flight Deals</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    {[
+                                        { name: 'Google Flights', url: `https://www.google.com/travel/flights?q=flights+from+${origin.replace(' ', '+')}+to+${destination.replace(' ', '+')}` },
+                                        { name: 'Skyscanner', url: `https://www.skyscanner.com/transport/flights/${origin}/${destination}` },
+                                        { name: 'Kayak', url: `https://www.kayak.com/flights/${origin}-${destination}` },
+                                        { name: 'Expedia', url: `https://www.expedia.com/Flights-Search?trip=roundtrip&leg1=from:${origin},to:${destination}` },
+                                        { name: 'Momondo', url: `https://www.momondo.com/flight-search/${origin}-${destination}` },
+                                        { name: 'CheapOair', url: `https://www.cheapoair.com/` }
+                                    ].map((platform) => (
+                                        <a
+                                            key={platform.name}
+                                            href={platform.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="px-5 py-3 bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 text-blue-300 rounded-xl transition-all flex items-center justify-center gap-2 font-medium"
+                                        >
+                                            {platform.name} ↗
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* HOTELS TAB */}
+                    {activeTab === 'hotels' && (
+                        <motion.div
+                            key="hotels"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                        >
+                            <h2 className="text-2xl font-bold text-white mb-6">🏨 Accommodation Options</h2>
+
+                            {/* Budget Summary for Hotels */}
+                            <div className="bg-gradient-to-br from-orange-900/50 to-orange-800/20 border border-orange-500/20 p-6 rounded-2xl mb-8">
+                                <div className="text-orange-400 text-sm font-semibold uppercase tracking-wider mb-2">Estimated Accommodation Cost</div>
+                                <div className="text-4xl font-bold text-white">${plan.budget?.accommodation || 0}</div>
+                                <div className="text-orange-400/60 text-xs mt-1">For {plan.itinerary?.length || 1} nights</div>
                             </div>
 
                             <h3 className="text-xl font-bold text-white mb-4">Recommended Hotels</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                                 {(plan.hotels_shortlist || []).map((hotel, i) => (
-                                    <div key={i} className="group bg-slate-800/50 p-4 rounded-xl border border-white/5 hover:border-white/20 transition-all">
+                                    <div key={i} className="group bg-slate-800/50 p-4 rounded-xl border border-white/5 hover:border-orange-500/30 transition-all">
                                         <div className="h-32 bg-slate-700 rounded-lg mb-4 overflow-hidden relative">
-                                            {/* Placeholder image if not live */}
                                             <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent"></div>
                                             <div className="absolute bottom-2 left-2 text-white font-bold">{hotel.name}</div>
                                         </div>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <div className="text-yellow-400 text-sm">★ {hotel.rating}</div>
-                                            <div className="text-teal-300 font-bold">${hotel.price_per_night}<span className="text-gray-500 text-xs font-normal">/night</span></div>
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm text-gray-400">📍 {hotel.area}</span>
+                                                <span className="text-yellow-400 text-sm">⭐ {hotel.rating}/5</span>
+                                            </div>
+                                            <p className="text-xs text-gray-500 line-clamp-2">{hotel.description}</p>
+                                            <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                                                <span className="text-lg font-bold text-teal-400">${hotel.price_per_night}/night</span>
+                                                {hotel.booking_link && (
+                                                    <a
+                                                        href={hotel.booking_link}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="px-3 py-1 bg-orange-500/20 text-orange-300 text-xs rounded-lg hover:bg-orange-500/30 transition-colors"
+                                                    >
+                                                        View ↗
+                                                    </a>
+                                                )}
+                                            </div>
                                         </div>
-                                        <p className="text-gray-400 text-xs mb-4 line-clamp-2">{hotel.description}</p>
-                                        <a href={hotel.booking_link} target="_blank" className="block w-full py-2 bg-blue-600 hover:bg-blue-500 text-white text-center rounded-lg text-xs font-bold transition-colors">
-                                            Check Availability
-                                        </a>
                                     </div>
                                 ))}
                             </div>
-                        </motion.div>
-                    )}
 
-                    {activeTab === 'packing' && (
-                        <motion.div
-                            key="packing"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                        >
-                            <h2 className="text-2xl font-bold text-white mb-6">🎒 Smart Packing List</h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                {(plan.packing_list || []).map((item, i) => (
-                                    <div key={i} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition">
-                                        <input type="checkbox" className="w-5 h-5 rounded border-gray-600 text-teal-500 focus:ring-teal-500 bg-slate-800" />
-                                        <div>
-                                            <div className="text-white font-medium">{item.item}</div>
-                                            <div className="text-xs text-gray-500">{item.category}</div>
-                                        </div>
+                            {/* Hotel Booking Platforms */}
+                            {plan.booking_platforms && Object.keys(plan.booking_platforms).length > 0 && (
+                                <div className="bg-white/5 border border-white/5 rounded-2xl p-6">
+                                    <h3 className="text-xl font-bold text-white mb-4">🔍 Compare Prices on Major Platforms</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                        {Object.entries(plan.booking_platforms).map(([name, url]) => (
+                                            <a
+                                                key={name}
+                                                href={url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="px-5 py-3 bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 text-orange-300 rounded-xl transition-all flex items-center justify-center gap-2 font-medium text-sm"
+                                            >
+                                                {name} ↗
+                                            </a>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            )}
                         </motion.div>
                     )}
                 </AnimatePresence>
