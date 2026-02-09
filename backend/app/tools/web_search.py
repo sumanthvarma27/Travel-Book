@@ -14,7 +14,10 @@ def web_search_tool(query: str, max_results: int = 6) -> List[Dict[str, Any]]:
         List of search results with title, url, and snippet
     """
     try:
-        from duckduckgo_search import DDGS
+        try:
+            from ddgs import DDGS
+        except Exception:
+            from duckduckgo_search import DDGS
 
         with DDGS() as ddgs:
             results = list(ddgs.text(query, max_results=max_results))

@@ -222,9 +222,12 @@ Using general recommendations:
             "osaka": (34.6937, 135.5023),
         }
 
-        # Try exact match first, then case-insensitive
+        # Try exact match first, then normalize common formats (e.g., "Tokyo, Japan")
         city_lower = city.lower().strip()
         coords = city_coords.get(city_lower)
+        if not coords and "," in city_lower:
+            primary = city_lower.split(",")[0].strip()
+            coords = city_coords.get(primary)
 
         if coords:
             return coords

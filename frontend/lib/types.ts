@@ -57,4 +57,6 @@ export interface TripPlan {
         currency: string;
     };
     packing_list: { category: string; item: string }[];
+    booking_platforms?: Record<string, string>;
+    activity_platforms?: Record<string, string>;
 }

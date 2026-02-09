@@ -1,9 +1,8 @@
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_vertexai import ChatVertexAI
 from app.graph.state import TripState
 from app.core.prompts import BUDGET_SYSTEM_PROMPT
-from app.tools.web_search import web_search_tool
-import os
+from app.tools.search_utils import run_searches, build_search_context
+from app.core.llm import get_llm
 
 async def budget_node(state: TripState):
     """
@@ -25,10 +24,8 @@ async def budget_node(state: TripState):
     except:
         num_days = 3  # Default fallback
 
-    # Check for API key to decide execution mode
-    project = os.getenv("GOOGLE_CLOUD_PROJECT")
-    location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-    if not project:
+    llm = get_llm(temperature=0.2, max_tokens=8000)
+    if not llm:
         # Provide mock budget breakdown
         budget_multiplier = {
             "low": 75,
@@ -67,27 +64,8 @@ Daily Budget Per Person: ${budget_multiplier:.2f}/day
         f"{spec.destination} food prices restaurants 2026"
     ]
 
-    search_results = []
-    for query in search_queries:
-        try:
-            results = web_search_tool.invoke({"query": query, "max_results": 3})
-            search_results.extend(results)
-        except Exception as e:
-            print(f"Search error for '{query}': {e}")
-
-    # Format search results for LLM
-    search_context = "\n\n".join([
-        f"**{r['title']}**\n{r['snippet']}\nSource: {r['url']}"
-        for r in search_results[:10]
-    ])
-
-    llm = ChatVertexAI(
-        model="gemini-2.5-flash",
-        project=project,
-        location=location,
-        temperature=0.2,
-        max_tokens=8000
-    )
+    search_results = run_searches(search_queries, max_results_per_query=3, max_total=10)
+    search_context = build_search_context(search_results, max_items=10)
 
     prompt = ChatPromptTemplate.from_template(
         BUDGET_SYSTEM_PROMPT + "\n\nWeb Search Results:\n{search_context}"

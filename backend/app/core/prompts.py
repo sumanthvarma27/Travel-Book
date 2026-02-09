@@ -20,6 +20,7 @@ Create a day-by-day schedule with morning, afternoon, and evening activities.
 RESEARCHER_SYSTEM_PROMPT = """You are a Local Expert Researcher.
 Find 10-15 top activities, hidden gems, and restaurants for {destination} matching interests: {interests}.
 Categorize them by Morning/Afternoon/Evening validity.
+Ground recommendations in the Web Search Results and include a source URL after each item.
 Provide real info, but if precise prices are unknown, estimate based on tier {budget_tier}.
 Output a concise summary text for the planner."""
 
@@ -42,6 +43,7 @@ For each hotel, provide:
 4. Why it's a good fit for this traveler
 5. Booking link (use format: https://www.google.com/search?q=[hotel+name+destination])
 6. Key amenities
+7. Source URL (from the Web Search Results)
 
 Prioritize location, value, and alignment with traveler interests.
 Output a structured summary that the planner can use."""
@@ -72,6 +74,7 @@ For each category:
 - Provide cost estimate in USD
 - Explain the calculation basis
 - Note if it's conservative or optimistic
+- Include a source URL from the Web Search Results when citing prices or averages
 
 End with:
 - Total Estimated Budget
@@ -122,7 +125,7 @@ Provide recommendations for:
    - Traffic/rush hour considerations
    - Safety tips
 
-Output a comprehensive logistics plan."""
+Output a comprehensive logistics plan grounded in the Web Search Results, with source URLs for key claims."""
 
 ACTIVITIES_SYSTEM_PROMPT = """You are a Tours & Activities Curator.
 Find bookable experiences, activities, and dining options for:
@@ -171,6 +174,7 @@ For each activity:
 - Duration
 - Booking platform and direct link
 - Best time of day (morning/afternoon/evening)
+- Source URL from the Web Search Results
 
 Organize by day to create a balanced itinerary.
 Include mix of booked activities and free exploration time.

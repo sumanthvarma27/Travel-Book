@@ -5,6 +5,7 @@ pydantic-settings
 langgraph
 langchain-core
 langchain-google-vertexai
+langchain-google-genai
 google-cloud-aiplatform
 python-dotenv
 sqlmodel
@@ -14,5 +15,6 @@ requests-cache
 retry
 retry-requests
 duckduckgo-search>=6.3.0
+ddgs
 beautifulsoup4==4.12.3
 requests==2.31.0

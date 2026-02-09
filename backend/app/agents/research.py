@@ -1,19 +1,11 @@
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_vertexai import ChatVertexAI
 from app.graph.state import TripState
 from app.core.prompts import RESEARCHER_SYSTEM_PROMPT
-from app.tools.web_search import web_search_tool
-import os
+from app.tools.search_utils import run_searches, build_search_context
+from app.core.llm import get_llm
 
 async def research_node(state: TripState):
     spec = state['spec']
-
-    # Check for Vertex AI configuration
-    project = os.getenv("GOOGLE_CLOUD_PROJECT")
-    location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-
-    if not project:
-        return {"research_notes": "Simulation: The user likes museums and spicy food. Recommended: Grand Museum, Spicy Noodle House."}
 
     # Perform web searches for real-time data
     search_queries = [
@@ -23,27 +15,14 @@ async def research_node(state: TripState):
         f"{spec.destination} travel guide 2026"
     ]
 
-    search_results = []
-    for query in search_queries:
-        try:
-            results = web_search_tool.invoke({"query": query, "max_results": 4})
-            search_results.extend(results)
-        except Exception as e:
-            print(f"Search error for '{query}': {e}")
+    search_results = run_searches(search_queries, max_results_per_query=4, max_total=15)
+    search_context = build_search_context(search_results, max_items=15)
 
-    # Format search results for LLM
-    search_context = "\n\n".join([
-        f"**{r['title']}**\n{r['snippet']}\nSource: {r['url']}"
-        for r in search_results[:15]  # Limit to top 15 results
-    ])
-
-    llm = ChatVertexAI(
-        model="gemini-2.5-flash",
-        project=project,
-        location=location,
-        temperature=0.7,
-        max_tokens=8000
-    )
+    llm = get_llm(temperature=0.7, max_tokens=8000)
+    if not llm:
+        return {
+            "research_notes": "Simulation: No LLM credentials found. Add GEMINI_API_KEY or GOOGLE_CLOUD_PROJECT to enable detailed research."
+        }
 
     prompt = ChatPromptTemplate.from_template(
         RESEARCHER_SYSTEM_PROMPT + "\n\nWeb Search Results:\n{search_context}"

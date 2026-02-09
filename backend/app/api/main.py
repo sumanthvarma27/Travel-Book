@@ -5,6 +5,9 @@ from app.schemas.itinerary import TripPlan
 from app.graph.graph import build_graph
 import uuid 
 import asyncio
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI(title="AI Travel Planner")
 
@@ -54,7 +57,12 @@ async def create_plan(spec: TripSpec):
             trips_db[run_id] = plan
             return {"run_id": run_id, "status": "completed", "plan": plan}
         else:
-             return {"run_id": run_id, "status": "failed", "error": "No plan generated"}
+             # Check for error messages in state
+             messages = result.get("messages", [])
+             error_msg = "No plan generated"
+             if messages:
+                 error_msg = f"Plan generation failed: {'; '.join(messages)}"
+             return {"run_id": run_id, "status": "failed", "error": error_msg}
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,10 +1,9 @@
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_vertexai import ChatVertexAI
 from app.graph.state import TripState
 from app.core.prompts import LOGISTICS_SYSTEM_PROMPT
-from app.tools.web_search import web_search_tool
+from app.tools.search_utils import run_searches, build_search_context
 from app.tools.mocks import BookingMocks
-import os
+from app.core.llm import get_llm
 
 async def logistics_node(state: TripState):
     """
@@ -26,10 +25,8 @@ async def logistics_node(state: TripState):
         start_date = today.strftime("%Y-%m-%d")
         end_date = (today + datetime.timedelta(days=3)).strftime("%Y-%m-%d")
 
-    # Check for API key to decide execution mode
-    project = os.getenv("GOOGLE_CLOUD_PROJECT")
-    location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-    if not project:
+    llm = get_llm(temperature=0.3, max_tokens=8000)
+    if not llm:
         # Use mock flight data
         flights = BookingMocks.search_flights(spec.origin, spec.destination, start_date)
         return_flights = BookingMocks.search_flights(spec.destination, spec.origin, end_date)
@@ -63,27 +60,8 @@ async def logistics_node(state: TripState):
         f"transportation tips {spec.destination} {spec.budget_tier} budget"
     ]
 
-    search_results = []
-    for query in search_queries:
-        try:
-            results = web_search_tool.invoke({"query": query, "max_results": 4})
-            search_results.extend(results)
-        except Exception as e:
-            print(f"Search error for '{query}': {e}")
-
-    # Format search results for LLM
-    search_context = "\n\n".join([
-        f"**{r['title']}**\n{r['snippet']}\nSource: {r['url']}"
-        for r in search_results[:12]
-    ])
-
-    llm = ChatVertexAI(
-        model="gemini-2.5-flash",
-        project=project,
-        location=location,
-        temperature=0.3,
-        max_tokens=8000
-    )
+    search_results = run_searches(search_queries, max_results_per_query=4, max_total=12)
+    search_context = build_search_context(search_results, max_items=12)
 
     prompt = ChatPromptTemplate.from_template(
         LOGISTICS_SYSTEM_PROMPT + "\n\nWeb Search Results:\n{search_context}"
