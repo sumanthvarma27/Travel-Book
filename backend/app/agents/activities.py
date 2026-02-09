@@ -1,9 +1,10 @@
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_vertexai import ChatVertexAI
 from app.graph.state import TripState
 from app.core.prompts import ACTIVITIES_SYSTEM_PROMPT
-from app.tools.web_search import web_search_tool
-import os
+from app.tools.search_utils import run_searches, build_search_context
+from app.tools.activity_bookings import find_activity_bookings
+from app.core.llm import get_llm
+import re
 
 async def activities_node(state: TripState):
     """
@@ -26,10 +27,8 @@ async def activities_node(state: TripState):
     except:
         num_days = 3  # Default fallback
 
-    # Check for API key to decide execution mode
-    project = os.getenv("GOOGLE_CLOUD_PROJECT")
-    location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-    if not project:
+    llm = get_llm(temperature=0.4, max_tokens=8000)
+    if not llm:
         # Provide mock activities with booking links
         activities_context = f"\n\n=== ACTIVITIES & EXPERIENCES ===\n"
         activities_context += f"Based on your interests: {', '.join(spec.interests) if spec.interests else 'general sightseeing'}\n\n"
@@ -73,7 +72,48 @@ async def activities_node(state: TripState):
 
         return {"activities_recommendations": activities_context}
 
-    # Perform web searches for activities and experiences
+    # Extract key activities from itinerary/research notes to find booking links
+    # Parse potential activities from research notes and plan
+    plan = state.get('plan', '')
+    activities_to_search = []
+
+    # Extract activities from interests
+    if spec.interests:
+        for interest in spec.interests[:3]:
+            activities_to_search.append(f"{interest} experience in {spec.destination}")
+
+    # Add common activities
+    activities_to_search.extend([
+        f"Walking tour {spec.destination}",
+        f"Food tour {spec.destination}",
+        f"Museum tickets {spec.destination}"
+    ])
+
+    # Use find_activity_bookings tool to get structured booking options
+    activity_booking_results = find_activity_bookings.invoke({
+        "destination": spec.destination,
+        "activities": activities_to_search,
+        "max_results": 3
+    })
+
+    # Build context from activity booking results
+    activity_context = "\n\n=== ACTIVITY BOOKING OPTIONS ===\n"
+    if activity_booking_results.get("activities"):
+        for activity_data in activity_booking_results["activities"]:
+            activity_context += f"\n🎯 {activity_data.get('activity', 'Unknown Activity')}\n"
+            for option in activity_data.get("booking_options", [])[:3]:
+                activity_context += f"  • {option.get('title', 'Tour')}\n"
+                activity_context += f"    Platform: {option.get('platform', 'Other')}\n"
+                activity_context += f"    Link: {option.get('url', '')}\n"
+                activity_context += f"    {option.get('snippet', '')[:150]}\n"
+
+    # Add platform landing pages
+    activity_context += "\n\n=== BOOKING PLATFORM LINKS ===\n"
+    if activity_booking_results.get("platform_links"):
+        for platform, url in activity_booking_results["platform_links"].items():
+            activity_context += f"• {platform}: {url}\n"
+
+    # Perform additional web searches for activities and experiences
     interests_str = ' '.join(spec.interests) if spec.interests else 'sightseeing'
     search_queries = [
         f"best tours and activities in {spec.destination} 2026",
@@ -83,30 +123,13 @@ async def activities_node(state: TripState):
         f"{spec.destination} food tours and dining experiences"
     ]
 
-    search_results = []
-    for query in search_queries:
-        try:
-            results = web_search_tool.invoke({"query": query, "max_results": 4})
-            search_results.extend(results)
-        except Exception as e:
-            print(f"Search error for '{query}': {e}")
-
-    # Format search results for LLM
-    search_context = "\n\n".join([
-        f"**{r['title']}**\n{r['snippet']}\nSource: {r['url']}"
-        for r in search_results[:15]
-    ])
-
-    llm = ChatVertexAI(
-        model="gemini-2.5-flash",
-        project=project,
-        location=location,
-        temperature=0.4,
-        max_tokens=8000
-    )
+    search_results = run_searches(search_queries, max_results_per_query=4, max_total=15)
+    search_context = build_search_context(search_results, max_items=15)
 
     prompt = ChatPromptTemplate.from_template(
-        ACTIVITIES_SYSTEM_PROMPT + "\n\nWeb Search Results:\n{search_context}"
+        ACTIVITIES_SYSTEM_PROMPT +
+        "\n\nActivity Booking Tool Results:\n{activity_context}" +
+        "\n\nAdditional Web Search Context:\n{search_context}"
     )
     chain = prompt | llm
 
@@ -121,6 +144,7 @@ async def activities_node(state: TripState):
         "research_notes": research_notes,
         "weather_info": weather_info,
         "hotel_recommendations": hotel_recommendations,
+        "activity_context": activity_context,
         "search_context": search_context
     })
 

@@ -12,38 +12,52 @@ from app.agents.planner import planner_node
 def router_check(state: TripState) -> str:
     """
     Router decision function after Planner Agent.
-    Determines if the plan needs hotel revision based on quality score.
+    Determines if the plan needs hotel revision based on multiple quality signals.
+
+    This implements the "Router Check" decision node from the architecture diagram.
 
     Returns:
     - "revise_hotel" if plan needs hotel improvement and we haven't hit max revisions
     - "activities" if plan is acceptable, continue to activities
     """
-    plan_quality_score = state.get('plan_quality_score', 0)
+    plan = state.get('plan', '')
+    hotel_recommendations = state.get('hotel_recommendations', '')
     revision_count = state.get('revision_count', 0)
-    plan = state.get('plan')
+    plan_quality_score = state.get('plan_quality_score', 0)
 
     # Maximum revisions to prevent infinite loops
-    MAX_REVISIONS = 2
+    MAX_REVISIONS = 1  # Allow one retry (matching reference repo pattern)
 
     # If we've reached max revisions, continue regardless of quality
     if revision_count >= MAX_REVISIONS:
         return "activities"
 
-    # If no plan was generated, continue (can't revise nothing)
-    if plan is None:
-        return "activities"
+    # Check if planner explicitly signals need for hotel revision
+    # (Following reference repo pattern where planner returns "REVISE_HOTEL")
+    if isinstance(plan, str) and "REVISE_HOTEL" in plan:
+        return "revise_hotel"
 
-    # Quality thresholds (matching diagram logic):
-    # If final_itinerary status indicates hotel needs revision
-    # For now, use quality score as proxy:
+    # Check for insufficient hotel data
+    hotel_content_lower = hotel_recommendations.lower() if hotel_recommendations else ""
+    hotel_missing_signals = [
+        "unavailable" in hotel_content_lower,
+        "no hotels" in hotel_content_lower,
+        "not found" in hotel_content_lower,
+        len(hotel_content_lower) < 100  # Too short to be useful
+    ]
+
+    if any(hotel_missing_signals):
+        return "revise_hotel"
+
+    # Check quality score if available
     # 8-10: Excellent, no revision needed
     # 6-7: Good, acceptable
     # 0-5: Needs improvement (revise hotel)
-    if plan_quality_score >= 6:
-        return "activities"
+    if plan_quality_score > 0 and plan_quality_score < 6:
+        return "revise_hotel"
 
-    # Plan needs hotel revision
-    return "revise_hotel"
+    # Plan is acceptable, continue to activities
+    return "activities"
 
 
 def increment_revision(state: TripState) -> dict:

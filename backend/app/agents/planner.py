@@ -1,10 +1,9 @@
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_vertexai import ChatVertexAI
 from langchain_core.output_parsers import JsonOutputParser
 from app.graph.state import TripState
 from app.schemas.itinerary import TripPlan
 from app.core.prompts import PLANNER_SYSTEM_PROMPT
-import os
+from app.core.llm import get_llm
 import json
 
 async def planner_node(state: TripState):
@@ -15,12 +14,31 @@ async def planner_node(state: TripState):
     budget = state.get('budget_breakdown', '')
     logistics = state.get('logistics_info', '')
     activities = state.get('activities_recommendations', '')
+    revision_count = state.get('revision_count', 0)
 
-    project = os.getenv("GOOGLE_CLOUD_PROJECT")
-    location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+    # Check hotel data quality BEFORE generating plan
+    # Following reference repo pattern: evaluate if hotel data is sufficient
+    hotels_content_lower = hotels.lower() if hotels else ""
+    max_retries = 1
+
+    hotel_missing = (
+        "unavailable" in hotels_content_lower or
+        "no hotels" in hotels_content_lower or
+        len(hotels_content_lower) < 100
+    )
+
+    # If hotel data is insufficient and we haven't retried yet, signal revision
+    if hotel_missing and revision_count < max_retries:
+        return {
+            "plan": "REVISE_HOTEL",  # Signal to router to loop back
+            "status": "needs_hotel_revision",
+            "plan_quality_score": 3
+        }
+
     parser = JsonOutputParser(pydantic_object=TripPlan)
 
-    if not project:
+    llm = get_llm(temperature=0.2, max_tokens=8000)
+    if not llm:
         # Mock Response for testing without LLM
         from datetime import datetime, timedelta
         from app.schemas.itinerary import (
@@ -123,15 +141,6 @@ async def planner_node(state: TripState):
         )
 
         return {"plan": mock_plan, "status": "completed", "plan_quality_score": 7}
-
-    # Use Gemini 2.0 Flash for better planning
-    llm = ChatVertexAI(
-        model="gemini-2.5-flash",
-        project=project,
-        location=location,
-        temperature=0.2,
-        max_tokens=8000
-    )
 
     prompt = ChatPromptTemplate.from_template(PLANNER_SYSTEM_PROMPT + "\n\n{format_instructions}")
 
