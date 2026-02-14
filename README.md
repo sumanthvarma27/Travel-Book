@@ -1,6 +1,7 @@
 # Trip-Book - AI-Powered Travel Planning
 
 Live-Demo: https://youtu.be/aKegsp9t6Ko
+
 An intelligent travel planning application powered by 7 specialized AI agents that work together to create personalized trip itineraries with real-time data.
 
 ## Features
